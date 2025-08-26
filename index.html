@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hai siapa namamu?</title>
+  <style>
+    :root {
+      --bg: #0b0b0c;
+      --card: #141416;
+      --text: #e9e9ef;
+      --muted: #a6a6b3;
+      --accent: #4c8bf5;
+      --danger: #ff6161;
+      --ok: #55d69e;
+      --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: radial-gradient(1200px 800px at 70% -10%, #1b1d21 0%, var(--bg) 55%);
+      color: var(--text);
+      display: grid; place-items: center;
+    }
+    .card {
+      width: min(560px, 92vw);
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: var(--radius);
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      padding: 28px 24px;
+    }
+    h1 { margin: 0 0 6px; font-size: 1.25rem; letter-spacing: .2px; }
+    p.desc { margin: 0 0 18px; color: var(--muted); font-size: .95rem; }
+    .row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+    input[type="text"] {
+      width: 100%; padding: 14px 14px; font-size: 1rem; color: var(--text);
+      border-radius: 12px; outline: none; border: 1px solid rgba(255,255,255,0.12);
+      background: #0f1012; transition: border .15s, box-shadow .15s;
+    }
+    input[type="text"]:focus {
+      border-color: var(--accent); box-shadow: 0 0 0 4px rgba(76,139,245,.15);
+    }
+    button {
+      padding: 12px 18px; font-weight: 600; border: 0; border-radius: 12px; cursor: pointer;
+      background: linear-gradient(180deg, #5c99ff, #3d79ee);
+      color: white; letter-spacing: .2px; transition: transform .05s ease-in-out, filter .2s;
+    }
+    button:active { transform: translateY(1px); }
+    button:disabled { filter: grayscale(.7); opacity: .7; cursor: not-allowed; }
+    .help { margin-top: 10px; font-size: .9rem; color: var(--muted); }
+    .msg { margin-top: 14px; font-size: .95rem; border-radius: 12px; padding: 10px 12px; }
+    .msg.warn { background: rgba(255, 186, 73, .08); border: 1px solid rgba(255, 186, 73, .35); }
+    .msg.error { background: rgba(255, 97, 97, .08); border: 1px solid rgba(255, 97, 97, .35); }
+    .msg.ok { background: rgba(85, 214, 158, .08); border: 1px solid rgba(85, 214, 158, .35); }
+    .footer { margin-top: 14px; color: var(--muted); font-size: .8rem; text-align: center; }
+    code { background: #0f1012; padding: 2px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); }
+  </style>
+</head>
+<body>
+  <satu class="card" role="region" aria-labelledby="title">
+    <h1 id="title">Nama kamu siapa?</h1>
+    <p class="desc">Ketik <em>nama</em> lalu tekan <b>Enter</b> atau klik <b>Go</b> <p class='desc'>Satu kata aja ya</p>
+
+    <div class="row">
+      <input id="nameInput" type="text" placeholder="Contoh: Roby" list="nameList" autocomplete="off" aria-describedby="helpText" />
+      <button id="goBtn" type="button">Go →</button>
+      <datalist id="nameList"></datalist>
+    </div>
+    <div id="message" class="msg" aria-live="polite" aria-atomic="true" style="display:none"></div>
+  </main>
+
+  <script>
+    "use strict";
+
+    // === KONFIGURASI ===
+    // Edit mapping nama → URL di sini. Key akan dibandingkan case-insensitive & di-trim.
+    const routes = {
+      // Contoh:
+      // "roby": "https://example.com",
+      // "sage": "https://openai.com",
+      // "shania": "https://id.wikipedia.org/wiki/Jepang",
+      // "admin": "https://economictraining.github.io/ET-INSIGHT/",
+
+      "mei": "https://scan.stie-mce.ac.id/photo/A.2024.1.36200.jpg",
+    };
+
+    // Opsi fallback (jika nama tidak ditemukan). Set true untuk arahkan ke Google Search; false untuk hanya tampilkan pesan.
+    const FALLBACK_TO_SEARCH = false;
+
+    // === UTIL ===
+    const $ = (sel) => document.querySelector(sel);
+    const input = $("#nameInput");
+    const btn = $("#goBtn");
+    const msg = $("#message");
+    const list = $("#nameList");
+
+    const normalize = (s) => (s ?? "").trim().toLowerCase();
+
+    function populateDatalist() {
+      list.innerHTML = "";
+      Object.keys(routes).sort().forEach(k => {
+        const opt = document.createElement("option");
+        opt.value = k[0].toUpperCase() + k.slice(1);
+        list.appendChild(opt);
+      });
+    }
+
+    function showMessage(text, type = "warn") {
+      msg.textContent = text;
+      msg.className = `msg ${type}`;
+      msg.style.display = "block";
+    }
+
+    function clearMessage() { msg.style.display = "none"; }
+
+    function handleGo() {
+      clearMessage();
+      const key = normalize(input.value);
+      if (!key) { showMessage("Isi nama dulu ya.", "warn"); input.focus(); return; }
+      const url = routes[key];
+      if (url) {
+        showMessage(`Mengarahkan ke: ${url}`, "ok");
+        // Gunakan assign agar masuk ke history; ganti ke replace() jika tidak ingin bisa back.
+        window.location.assign(url);
+      } else {
+        if (FALLBACK_TO_SEARCH) {
+          const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(key)}`;
+          showMessage(`Nama tidak ditemukan. Membuka pencarian: ${searchUrl}`, "warn");
+          window.location.assign(searchUrl);
+        } else {
+          const avail = Object.keys(routes).map(k => k[0].toUpperCase() + k.slice(1)).join(", ");
+          showMessage(`${key} mah siapa? Coba "${avail}"`, "error");
+        }
+      }
+    }
+
+    // Event handlers
+    btn.addEventListener("click", handleGo);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handleGo();
+    });
+
+    // Autofocus & isi datalist saat load
+    window.addEventListener("DOMContentLoaded", () => {
+      populateDatalist();
+      input.focus();
+
+      // Optional: Prefill dari URL ?name=...
+      const params = new URLSearchParams(window.location.search);
+      const pre = params.get("name");
+      if (pre) input.value = pre;
+    });
+  </script>
+</body>
+</html>
